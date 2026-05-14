@@ -30,7 +30,6 @@ SHEET_ID = "13ibY4_88N7pTK2lrLkNcudGeVyh78Kry6Y60Ijp0JD4"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 LOGO_URL = "https://raw.githubusercontent.com/malueoficial/malue-contratos/main/malue_icon.png"
 
-# Webhook URL — preenchido após o setup do Apps Script.
 WEBHOOK_URL = ""
 try:
     WEBHOOK_URL = st.secrets.get("WEBHOOK_URL", "")
@@ -43,9 +42,6 @@ st.set_page_config(
     layout="centered",
 )
 
-# ============================================================
-# Brand CSS
-# ============================================================
 st.markdown(
     """
     <style>
@@ -232,8 +228,7 @@ st.markdown(
 
 if not WEBHOOK_URL:
     st.warning(
-        "⚠️ Edição desabilitada — webhook não configurado. "
-        "Configure o Apps Script e adicione WEBHOOK_URL nas Secrets do Streamlit."
+        "⚠️ Edição desabilitada — webhook não configurado."
     )
 
 MESES_PT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
@@ -310,6 +305,19 @@ def salvar_no_sheet(row_index: int, updates: dict) -> tuple[bool, str]:
         return False, "Webhook não configurado."
     try:
         payload = {"row": row_index + 2, "updates": updates}
+        r = requests.post(WEBHOOK_URL, json=payload, timeout=15)
+        if r.status_code != 200:
+            return False, f"HTTP {r.status_code}: {r.text[:200]}"
+        return True, r.text
+    except Exception as e:
+        return False, str(e)
+
+
+def excluir_do_sheet(row_index: int) -> tuple[bool, str]:
+    if not WEBHOOK_URL:
+        return False, "Webhook não configurado."
+    try:
+        payload = {"delete": True, "row": row_index + 2}
         r = requests.post(WEBHOOK_URL, json=payload, timeout=15)
         if r.status_code != 200:
             return False, f"HTTP {r.status_code}: {r.text[:200]}"
@@ -436,8 +444,36 @@ for idx, row in df_view.iterrows():
                 }
                 ok, msg = salvar_no_sheet(idx, updates)
                 if ok:
-                    st.success("✅ Salvo! Dia calculado: " + dia_calculado)
+                    st.success("✅ Salvo!")
                     st.cache_data.clear()
                     st.rerun()
                 else:
                     st.error(f"Erro ao salvar: {msg}")
+
+        # Excluir (fora do form, duas etapas)
+        confirm_key = f"confirm_del_{idx}"
+        st.markdown("<hr style='border-color:#2a2a2a;margin:0.6rem 0;'>", unsafe_allow_html=True)
+        if st.session_state.get(confirm_key):
+            st.warning(
+                f"⚠️ Tem certeza que quer excluir '{local}' "
+                f"({d.strftime('%d/%m/%Y')})? Essa ação é definitiva."
+            )
+            col_ok, col_cancel = st.columns(2)
+            with col_ok:
+                if st.button("Sim, excluir", key=f"do_del_{idx}", type="primary"):
+                    ok_del, msg_del = excluir_do_sheet(idx)
+                    if ok_del:
+                        st.session_state[confirm_key] = False
+                        st.success("✅ Show excluído.")
+                        st.cache_data.clear()
+                        st.rerun()
+                    else:
+                        st.error(f"Erro ao excluir: {msg_del}")
+            with col_cancel:
+                if st.button("Cancelar", key=f"cancel_del_{idx}"):
+                    st.session_state[confirm_key] = False
+                    st.rerun()
+        else:
+            if st.button("🗑️ Excluir este show", key=f"trigger_del_{idx}"):
+                st.session_state[confirm_key] = True
+                st.rerun()

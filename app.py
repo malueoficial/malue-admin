@@ -201,6 +201,7 @@ st.markdown(
         word-break: break-word;
       }
       .show-meta { color: var(--muted); font-size: 0.85rem; margin-top: 0.2rem; }
+      .show-meta-2 { color: var(--muted); font-size: 0.8rem; margin-top: 0.15rem; opacity: 0.85; }
       .show-valor {
         color: var(--lime);
         font-weight: 700;
@@ -473,23 +474,36 @@ for idx, row in df_view.iterrows():
     horario = row.get("Horário Show", "")
     local = row.get("Local", "") or "—"
     cidade = row.get("Cidade", "")
+    contratante = row.get("Contratante", "")
+    tipo_evento = row.get("Tipo Evento", "")
     valor = row.get("Valor", "")
     status_html = status_pill(row.get("Status", ""))
 
-    cidade_str = f" · {cidade}" if cidade and cidade.lower() not in local.lower() else ""
     horario_badge = f"<span class='show-time-badge'>🕐 {horario}</span>" if horario else ""
     valor_html = f"<div class='show-valor'>💰 {valor}</div>" if valor else ""
+
+    # Linha 1 do meta: dia da semana · tipo de show · status
+    parte1 = [p for p in [dia_sem, tipo_evento] if p]
+    meta1 = " · ".join(parte1)
+    if status_html:
+        meta1 = (meta1 + " " if meta1 else "") + status_html
+
+    # Linha 2 do meta: contratante · cidade (se cidade ≠ local)
+    cidade_show = cidade if cidade and cidade.lower() not in local.lower() else ""
+    parte2 = [p for p in [contratante, cidade_show] if p]
+    meta2_html = (
+        f"<div class='show-meta show-meta-2'>{' · '.join(parte2)}</div>"
+        if parte2 else ""
+    )
+
     contrato_url = (row.get("Contrato URL", "") or "").strip()
-    if contrato_url:
-        contrato_html = (
-            "<div class='show-contrato'>"
-            f"<a href='{contrato_url}' target='_blank' rel='noopener'>📄 Ver contrato</a>"
-            f"<a href='{CAMARIM_URL}' target='_blank' rel='noopener'>🛋️ Camarim</a>"
-            f"<a href='{RIDER_URL}' target='_blank' rel='noopener'>🎤 Rider</a>"
-            "</div>"
-        )
-    else:
-        contrato_html = ""
+    contrato_html = (
+        f"<div class='show-contrato'>"
+        f"<a href='{contrato_url}' target='_blank' rel='noopener'>📄 Ver contrato</a>"
+        f"</div>"
+        if contrato_url
+        else ""
+    )
 
     st.markdown(
         f"""
@@ -500,7 +514,8 @@ for idx, row in df_view.iterrows():
           </div>
           <div class="show-info">
             <div class="show-title">{local}{horario_badge}</div>
-            <div class="show-meta">{dia_sem}{cidade_str} {status_html}</div>
+            <div class="show-meta">{meta1}</div>
+            {meta2_html}
             {valor_html}
             {contrato_html}
           </div>

@@ -9,10 +9,6 @@ import io
 import json
 from datetime import date, datetime
 
-import pandas as pd
-import requests
-import streamlit as st
-
 DIAS_SEMANA_PT = [
     "Segunda", "Terça", "Quarta", "Quinta",
     "Sexta", "Sábado", "Domingo",
@@ -22,6 +18,9 @@ DIAS_SEMANA_PT = [
 def dia_semana_pt(d: date) -> str:
     return DIAS_SEMANA_PT[d.weekday()]
 
+import pandas as pd
+import requests
+import streamlit as st
 
 # ============================================================
 # Config
@@ -43,6 +42,9 @@ st.set_page_config(
     layout="centered",
 )
 
+# Injeta apple-touch-icon no head do TOP document pra o iPhone usar o
+# ícone certo quando adicionar à tela inicial. Streamlit roda dentro de
+# iframes, então precisamos alcançar top.document (a página externa).
 import streamlit.components.v1 as _components
 _components.html(
     f"""
@@ -50,8 +52,11 @@ _components.html(
       const ICON = '{ICON_URL}';
       function injetar() {{
         try {{
+          // Alcança o topo (página fora dos iframes do Streamlit)
           const doc = (window.top && window.top.document) || document;
+          // Remove os ícones padrão do Streamlit
           doc.querySelectorAll('link[rel*="apple-touch-icon"], link[rel="icon"], link[rel="shortcut icon"], link[rel="mask-icon"]').forEach(l => l.remove());
+          // Adiciona o nosso em vários tamanhos
           const tamanhos = ['180x180', '152x152', '144x144', '120x120', null];
           for (const t of tamanhos) {{
             const link = doc.createElement('link');
@@ -64,6 +69,7 @@ _components.html(
           fav.rel = 'icon';
           fav.href = ICON;
           doc.head.appendChild(fav);
+          // Atualiza o título da página (web app)
           const title = doc.createElement('meta');
           title.setAttribute('name', 'apple-mobile-web-app-title');
           title.setAttribute('content', 'Agenda MaLuê');
@@ -71,6 +77,7 @@ _components.html(
         }} catch(e) {{ console.error('icon inject err:', e); }}
       }}
       injetar();
+      // Re-inject quando Streamlit re-renderizar
       setTimeout(injetar, 500);
       setTimeout(injetar, 2000);
       setTimeout(injetar, 5000);
@@ -79,6 +86,9 @@ _components.html(
     height=0,
 )
 
+# ============================================================
+# Brand CSS
+# ============================================================
 st.markdown(
     """
     <style>
@@ -111,8 +121,20 @@ st.markdown(
         margin: 0 auto 0.6rem;
         display: block;
       }
-      .header-title { font-size: 2.2rem; font-weight: 900; color: var(--text); line-height: 1; margin: 0.3rem 0 0.2rem 0; }
-      .header-sub { color: var(--lime); font-weight: 700; font-size: 0.9rem; letter-spacing: 1.2px; text-transform: uppercase; }
+      .header-title {
+        font-size: 2.2rem;
+        font-weight: 900;
+        color: var(--text);
+        line-height: 1;
+        margin: 0.3rem 0 0.2rem 0;
+      }
+      .header-sub {
+        color: var(--lime);
+        font-weight: 700;
+        font-size: 0.9rem;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+      }
       .admin-badge {
         display: inline-block;
         background: rgba(200,240,50,0.18);
@@ -126,6 +148,7 @@ st.markdown(
         margin-left: 0.4rem;
       }
 
+      /* Filter tabs */
       .stRadio > div { flex-direction: row !important; justify-content: center; gap: 0.3rem; }
       .stRadio label {
         background: var(--card);
@@ -137,6 +160,7 @@ st.markdown(
       }
       .stRadio label:hover { border-color: var(--lime); }
 
+      /* Card */
       .show-card {
         background: var(--card);
         border: 1px solid #222;
@@ -158,11 +182,28 @@ st.markdown(
         font-weight: 900;
       }
       .date-day { font-size: 1.6rem; line-height: 1; display: block; }
-      .date-month { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; display: block; margin-top: 0.15rem; }
+      .date-month {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        display: block;
+        margin-top: 0.15rem;
+      }
       .show-info { flex: 1; min-width: 0; }
-      .show-title { font-size: 1.05rem; font-weight: 700; color: var(--text); margin: 0; word-break: break-word; }
+      .show-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--text);
+        margin: 0;
+        word-break: break-word;
+      }
       .show-meta { color: var(--muted); font-size: 0.85rem; margin-top: 0.2rem; }
-      .show-valor { color: var(--lime); font-weight: 700; font-size: 0.95rem; margin-top: 0.3rem; }
+      .show-valor {
+        color: var(--lime);
+        font-weight: 700;
+        font-size: 0.95rem;
+        margin-top: 0.3rem;
+      }
       .show-time-badge {
         background: rgba(200, 240, 50, 0.18);
         color: var(--lime);
@@ -173,7 +214,27 @@ st.markdown(
         margin-left: 0.4rem;
         white-space: nowrap;
       }
+      .show-contrato { margin-top: 0.45rem; }
+      .show-contrato a {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        background: rgba(200, 240, 50, 0.12);
+        color: var(--lime) !important;
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        text-decoration: none;
+        border: 1px solid rgba(200, 240, 50, 0.35);
+        transition: background 0.15s;
+      }
+      .show-contrato a:hover {
+        background: rgba(200, 240, 50, 0.22);
+        border-color: var(--lime);
+      }
 
+      /* Status pills */
       .status-pill {
         display: inline-block;
         padding: 0.2rem 0.55rem;
@@ -203,14 +264,17 @@ st.markdown(
         font-size: 0.85rem;
         padding: 0.6rem 1rem !important;
       }
-      [data-testid="stExpander"] > div > div { padding: 0.6rem 1rem !important; }
+      [data-testid="stExpander"] > div > div {
+        padding: 0.6rem 1rem !important;
+      }
 
+      /* Form inputs no expander */
       .stTextInput input, .stSelectbox > div > div, .stTextArea textarea {
         background: #0d0d0d !important;
         color: var(--text) !important;
         border-color: #2a2a2a !important;
       }
-      .stTextInput label, .stSelectbox label, .stTextArea label, .stDateInput label {
+      .stTextInput label, .stSelectbox label, .stTextArea label {
         color: var(--muted) !important;
         font-size: 0.78rem !important;
         text-transform: uppercase;
@@ -218,6 +282,7 @@ st.markdown(
         font-weight: 700;
       }
 
+      /* Save button */
       div[data-testid="stForm"] button[type="submit"] {
         background: var(--lime) !important;
         color: #0a0a0a !important;
@@ -231,6 +296,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# ============================================================
+# Header
+# ============================================================
 st.markdown(
     f"""
     <div class="header-wrap">
@@ -243,8 +311,14 @@ st.markdown(
 )
 
 if not WEBHOOK_URL:
-    st.warning("⚠️ Edição desabilitada — webhook não configurado.")
+    st.warning(
+        "⚠️ Edição desabilitada — webhook não configurado. "
+        "Veja INSTRUCOES_WEBHOOK.md no repo pra configurar."
+    )
 
+# ============================================================
+# Load data
+# ============================================================
 MESES_PT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
             "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
 
@@ -256,6 +330,8 @@ def carregar_agenda() -> pd.DataFrame:
     r.encoding = "utf-8"
     df = pd.read_csv(io.BytesIO(r.content), dtype=str, encoding="utf-8").fillna("")
     df.columns = [c.strip() for c in df.columns]
+    # _sheet_row guarda a linha real na planilha (antes do sort)
+    # header = linha 1, primeira linha de dados = linha 2
     df["_sheet_row"] = df.index + 2
     df["_data_dt"] = pd.to_datetime(df["Data"], format="%d/%m/%Y", errors="coerce")
     df = df.dropna(subset=["_data_dt"])
@@ -269,6 +345,9 @@ except Exception as e:
     st.caption(f"Detalhe técnico: {e}")
     st.stop()
 
+# ============================================================
+# Filtros
+# ============================================================
 filtro = st.radio(
     "Filtro",
     ["Próximos", "Este mês", "Todos"],
@@ -310,12 +389,15 @@ def status_pill(status: str) -> str:
     return f"<span class='status-pill {classe}'>{status}</span>"
 
 
+# ============================================================
+# Cards com edição
+# ============================================================
 STATUS_OPCOES = ["", "Confirmado", "Contrato assinado", "Realizado", "Pago", "Cancelado", "Folga"]
 TRAJE_OPCOES = ["", "Social", "Polo", "Casual", "Tema da festa"]
 TIPO_OPCOES = ["", "Show", "Casamento", "Aniversário", "Corporativo", "Formatura", "Privado", "Carnaval"]
 
 
-def salvar_no_sheet(sheet_row, updates: dict) -> tuple[bool, str]:
+def salvar_no_sheet(sheet_row: int, updates: dict) -> tuple[bool, str]:
     if not WEBHOOK_URL:
         return False, "Webhook não configurado."
     try:
@@ -328,7 +410,7 @@ def salvar_no_sheet(sheet_row, updates: dict) -> tuple[bool, str]:
         return False, str(e)
 
 
-def excluir_do_sheet(sheet_row) -> tuple[bool, str]:
+def excluir_do_sheet(sheet_row: int) -> tuple[bool, str]:
     if not WEBHOOK_URL:
         return False, "Webhook não configurado."
     try:
@@ -355,6 +437,12 @@ for idx, row in df_view.iterrows():
     cidade_str = f" · {cidade}" if cidade and cidade.lower() not in local.lower() else ""
     horario_badge = f"<span class='show-time-badge'>🕐 {horario}</span>" if horario else ""
     valor_html = f"<div class='show-valor'>💰 {valor}</div>" if valor else ""
+    contrato_url = (row.get("Contrato URL", "") or "").strip()
+    contrato_html = (
+        f"<div class='show-contrato'><a href='{contrato_url}' target='_blank' rel='noopener'>📄 Ver contrato</a></div>"
+        if contrato_url
+        else ""
+    )
 
     st.markdown(
         f"""
@@ -367,6 +455,7 @@ for idx, row in df_view.iterrows():
             <div class="show-title">{local}{horario_badge}</div>
             <div class="show-meta">{dia_sem}{cidade_str} {status_html}</div>
             {valor_html}
+            {contrato_html}
           </div>
         </div>
         """,
@@ -377,31 +466,74 @@ for idx, row in df_view.iterrows():
         with st.form(f"form_{idx}"):
             col1, col2 = st.columns(2)
             with col1:
-                data_in = st.date_input("Data do evento", value=d.date(), format="DD/MM/YYYY", key=f"d_{idx}")
-                horario_in = st.text_input("Horário do show", value=row.get("Horário Show", ""), key=f"h_{idx}")
+                data_in = st.date_input(
+                    "Data do evento",
+                    value=d.date(),
+                    format="DD/MM/YYYY",
+                    key=f"d_{idx}",
+                )
+                horario_in = st.text_input(
+                    "Horário do show", value=row.get("Horário Show", ""), key=f"h_{idx}"
+                )
                 local_in = st.text_input(
                     "Título do show",
                     value=row.get("Local", ""),
                     key=f"l_{idx}",
                     help="É o nome que aparece em destaque no card da agenda. Pode ser nome do cliente, da casa, ou da cidade.",
                 )
-                cidade_in = st.text_input("Cidade", value=row.get("Cidade", ""), key=f"c_{idx}")
-                contratante_in = st.text_input("Contratante", value=row.get("Contratante", ""), key=f"co_{idx}")
-                valor_in = st.text_input("Valor (R$)", value=row.get("Valor", ""), key=f"v_{idx}")
+                cidade_in = st.text_input(
+                    "Cidade", value=row.get("Cidade", ""), key=f"c_{idx}"
+                )
+                contratante_in = st.text_input(
+                    "Contratante", value=row.get("Contratante", ""), key=f"co_{idx}"
+                )
+                valor_in = st.text_input(
+                    "Valor (R$)", value=row.get("Valor", ""), key=f"v_{idx}"
+                )
             with col2:
-                passagem_in = st.text_input("Passagem de som", value=row.get("Passagem de Som", ""), key=f"p_{idx}", placeholder="ex.: 18h")
+                passagem_in = st.text_input(
+                    "Passagem de som (hora)",
+                    value=row.get("Passagem de Som", ""),
+                    key=f"p_{idx}",
+                    placeholder="ex.: 18h",
+                )
                 traje_atual = row.get("Traje", "")
-                traje_in = st.selectbox("Traje", options=TRAJE_OPCOES, index=TRAJE_OPCOES.index(traje_atual) if traje_atual in TRAJE_OPCOES else 0, key=f"t_{idx}")
-                empresa_in = st.text_input("Empresa de som", value=row.get("Empresa de Som", ""), key=f"e_{idx}")
+                traje_in = st.selectbox(
+                    "Traje",
+                    options=TRAJE_OPCOES,
+                    index=TRAJE_OPCOES.index(traje_atual) if traje_atual in TRAJE_OPCOES else 0,
+                    key=f"t_{idx}",
+                )
+                empresa_in = st.text_input(
+                    "Empresa de som",
+                    value=row.get("Empresa de Som", ""),
+                    key=f"e_{idx}",
+                )
                 tipo_atual = row.get("Tipo Evento", "")
-                tipo_in = st.selectbox("Tipo de evento", options=TIPO_OPCOES, index=TIPO_OPCOES.index(tipo_atual) if tipo_atual in TIPO_OPCOES else 0, key=f"ti_{idx}")
+                tipo_in = st.selectbox(
+                    "Tipo de evento",
+                    options=TIPO_OPCOES,
+                    index=TIPO_OPCOES.index(tipo_atual) if tipo_atual in TIPO_OPCOES else 0,
+                    key=f"ti_{idx}",
+                )
                 status_atual = row.get("Status", "")
-                status_in = st.selectbox("Status", options=STATUS_OPCOES, index=STATUS_OPCOES.index(status_atual) if status_atual in STATUS_OPCOES else 0, key=f"s_{idx}")
+                status_in = st.selectbox(
+                    "Status",
+                    options=STATUS_OPCOES,
+                    index=STATUS_OPCOES.index(status_atual) if status_atual in STATUS_OPCOES else 0,
+                    key=f"s_{idx}",
+                )
 
-            obs_in = st.text_area("Observações", value=row.get("Observações", ""), key=f"o_{idx}", height=70)
+            obs_in = st.text_area(
+                "Observações",
+                value=row.get("Observações", ""),
+                key=f"o_{idx}",
+                height=70,
+            )
 
             submitted = st.form_submit_button("💾 Salvar alterações")
             if submitted:
+                # Dia da semana é sempre calculado da data
                 dia_calculado = dia_semana_pt(data_in)
                 updates = {
                     "Data": data_in.strftime("%d/%m/%Y"),
@@ -426,11 +558,14 @@ for idx, row in df_view.iterrows():
                 else:
                     st.error(f"Erro ao salvar: {msg}")
 
+        # ============================================================
+        # Excluir (fora do form, duas etapas)
+        # ============================================================
         confirm_key = f"confirm_del_{idx}"
         st.markdown("<hr style='border-color:#2a2a2a;margin:0.6rem 0;'>", unsafe_allow_html=True)
         if st.session_state.get(confirm_key):
             st.warning(
-                f"⚠️ Tem certeza que quer excluir '{local}' "
+                f"⚠️ Tem certeza que quer excluir o show '{local}' "
                 f"({d.strftime('%d/%m/%Y')})? Essa ação é definitiva."
             )
             col_ok, col_cancel = st.columns(2)
@@ -439,7 +574,7 @@ for idx, row in df_view.iterrows():
                     ok_del, msg_del = excluir_do_sheet(row.get("_sheet_row"))
                     if ok_del:
                         st.session_state[confirm_key] = False
-                        st.success("✅ Show excluído.")
+                        st.success("✅ Show excluído da agenda.")
                         st.cache_data.clear()
                         st.rerun()
                     else:

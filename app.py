@@ -29,6 +29,7 @@ def dia_semana_pt(d: date) -> str:
 SHEET_ID = "13ibY4_88N7pTK2lrLkNcudGeVyh78Kry6Y60Ijp0JD4"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 LOGO_URL = "https://raw.githubusercontent.com/malueoficial/malue-contratos/main/malue_icon.png"
+ICON_URL = "https://raw.githubusercontent.com/malueoficial/malue-contratos/main/ml_agenda_icon.png"
 
 WEBHOOK_URL = ""
 try:
@@ -38,8 +39,33 @@ except Exception:
 
 st.set_page_config(
     page_title="Agenda MaLuê — Admin",
-    page_icon=LOGO_URL,
+    page_icon=ICON_URL,
     layout="centered",
+)
+
+# Injeta apple-touch-icon no head pra o iPhone usar o ícone certo
+# quando adicionar à tela inicial.
+import streamlit.components.v1 as _components
+_components.html(
+    f"""
+    <script>
+      try {{
+        const links = [
+          {{rel: 'apple-touch-icon', href: '{ICON_URL}'}},
+          {{rel: 'apple-touch-icon-precomposed', href: '{ICON_URL}'}},
+          {{rel: 'icon', href: '{ICON_URL}', type: 'image/png'}},
+        ];
+        for (const cfg of links) {{
+          const link = parent.document.createElement('link');
+          link.rel = cfg.rel;
+          link.href = cfg.href;
+          if (cfg.type) link.type = cfg.type;
+          parent.document.head.appendChild(link);
+        }}
+      }} catch(e) {{ console.error('Falha ao injetar apple-touch-icon:', e); }}
+    </script>
+    """,
+    height=0,
 )
 
 st.markdown(
@@ -240,7 +266,6 @@ def carregar_agenda() -> pd.DataFrame:
     r.encoding = "utf-8"
     df = pd.read_csv(io.BytesIO(r.content), dtype=str, encoding="utf-8").fillna("")
     df.columns = [c.strip() for c in df.columns]
-    # _sheet_row guarda a linha real na planilha (antes do sort)
     df["_sheet_row"] = df.index + 2
     df["_data_dt"] = pd.to_datetime(df["Data"], format="%d/%m/%Y", errors="coerce")
     df = df.dropna(subset=["_data_dt"])

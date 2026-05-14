@@ -432,6 +432,39 @@ def excluir_do_sheet(sheet_row: int) -> tuple[bool, str]:
         return False, str(e)
 
 
+@st.cache_data(ttl=120)
+def contar_acessos(label: str, tipo: str = "") -> dict | None:
+    """Consulta o endpoint /exec?action=count do Apps Script.
+
+    Retorna {total, encaminhado, primeiro, ultimo} ou None se falhar.
+    Cacheado por 2 minutos pra não bater toda hora.
+    """
+    if not WEBHOOK_URL or not label:
+        return None
+    try:
+        params = {"action": "count", "label": label}
+        if tipo:
+            params["type"] = tipo
+        r = requests.get(WEBHOOK_URL, params=params, timeout=10)
+        if r.status_code != 200:
+            return None
+        j = r.json()
+        if not j.get("ok"):
+            return None
+        return j
+    except Exception:
+        return None
+
+
+def _data_iso(data_br: str) -> str:
+    """Converte DD/MM/YYYY → YYYY-MM-DD (formato usado no label do tracker)."""
+    parts = (data_br or "").split("/")
+    if len(parts) != 3:
+        return data_br
+    d, m, y = parts
+    return f"{y}-{m.zfill(2)}-{d.zfill(2)}"
+
+
 for idx, row in df_view.iterrows():
     d = row["_data_dt"]
     dia_num = d.day
@@ -571,6 +604,43 @@ for idx, row in df_view.iterrows():
                     st.rerun()
                 else:
                     st.error(f"Erro ao salvar: {msg}")
+
+        # ============================================================
+        # Acessos do contrato (só se tiver Contrato URL)
+        # ============================================================
+        if contrato_url:
+            with st.expander("📊 Acessos do contrato"):
+                contratante_label = row.get("Contratante", "")
+                data_iso = _data_iso(row.get("Data", ""))
+                label_contrato = f"{contratante_label} | {data_iso} (contrato)"
+                acessos = contar_acessos(label_contrato, tipo="contrato")
+                if acessos is None:
+                    st.caption("⚠️ Não consegui consultar acessos agora.")
+                else:
+                    total = acessos.get("total", 0)
+                    encaminhado = acessos.get("encaminhado", 0)
+                    primeiro = acessos.get("primeiro")
+                    ultimo = acessos.get("ultimo")
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        st.metric("Aberto", f"{total} vezes")
+                    with col_b:
+                        st.metric("Encaminhado (estimado)", f"~{encaminhado} vezes")
+                    if primeiro:
+                        st.caption(f"📥 Primeiro acesso: **{primeiro}**")
+                    if ultimo:
+                        st.caption(f"🕐 Último acesso: **{ultimo}**")
+                    if total == 0:
+                        st.info(
+                            "Ainda não foi aberto pelo cliente. "
+                            "(Seus cliques pelo botão 'Ver contrato' acima não contam — "
+                            "essa contagem é só do link enviado pelo WhatsApp.)"
+                        )
+                    elif encaminhado >= 2:
+                        st.warning(
+                            f"⚠️ O link foi aberto {total} vezes. Pode ter sido "
+                            "encaminhado pra outras pessoas."
+                        )
 
         # ============================================================
         # Excluir (fora do form, duas etapas)

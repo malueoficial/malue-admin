@@ -43,26 +43,37 @@ st.set_page_config(
     layout="centered",
 )
 
-# Injeta apple-touch-icon no head pra o iPhone usar o ícone certo
-# quando adicionar à tela inicial.
 import streamlit.components.v1 as _components
 _components.html(
     f"""
     <script>
-      try {{
-        const links = [
-          {{rel: 'apple-touch-icon', href: '{ICON_URL}'}},
-          {{rel: 'apple-touch-icon-precomposed', href: '{ICON_URL}'}},
-          {{rel: 'icon', href: '{ICON_URL}', type: 'image/png'}},
-        ];
-        for (const cfg of links) {{
-          const link = parent.document.createElement('link');
-          link.rel = cfg.rel;
-          link.href = cfg.href;
-          if (cfg.type) link.type = cfg.type;
-          parent.document.head.appendChild(link);
-        }}
-      }} catch(e) {{ console.error('Falha ao injetar apple-touch-icon:', e); }}
+      const ICON = '{ICON_URL}';
+      function injetar() {{
+        try {{
+          const doc = (window.top && window.top.document) || document;
+          doc.querySelectorAll('link[rel*="apple-touch-icon"], link[rel="icon"], link[rel="shortcut icon"], link[rel="mask-icon"]').forEach(l => l.remove());
+          const tamanhos = ['180x180', '152x152', '144x144', '120x120', null];
+          for (const t of tamanhos) {{
+            const link = doc.createElement('link');
+            link.rel = 'apple-touch-icon';
+            link.href = ICON;
+            if (t) link.setAttribute('sizes', t);
+            doc.head.appendChild(link);
+          }}
+          const fav = doc.createElement('link');
+          fav.rel = 'icon';
+          fav.href = ICON;
+          doc.head.appendChild(fav);
+          const title = doc.createElement('meta');
+          title.setAttribute('name', 'apple-mobile-web-app-title');
+          title.setAttribute('content', 'Agenda MaLuê');
+          doc.head.appendChild(title);
+        }} catch(e) {{ console.error('icon inject err:', e); }}
+      }}
+      injetar();
+      setTimeout(injetar, 500);
+      setTimeout(injetar, 2000);
+      setTimeout(injetar, 5000);
     </script>
     """,
     height=0,
@@ -100,20 +111,8 @@ st.markdown(
         margin: 0 auto 0.6rem;
         display: block;
       }
-      .header-title {
-        font-size: 2.2rem;
-        font-weight: 900;
-        color: var(--text);
-        line-height: 1;
-        margin: 0.3rem 0 0.2rem 0;
-      }
-      .header-sub {
-        color: var(--lime);
-        font-weight: 700;
-        font-size: 0.9rem;
-        letter-spacing: 1.2px;
-        text-transform: uppercase;
-      }
+      .header-title { font-size: 2.2rem; font-weight: 900; color: var(--text); line-height: 1; margin: 0.3rem 0 0.2rem 0; }
+      .header-sub { color: var(--lime); font-weight: 700; font-size: 0.9rem; letter-spacing: 1.2px; text-transform: uppercase; }
       .admin-badge {
         display: inline-block;
         background: rgba(200,240,50,0.18);
@@ -159,27 +158,20 @@ st.markdown(
         font-weight: 900;
       }
       .date-day { font-size: 1.6rem; line-height: 1; display: block; }
-      .date-month {
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        display: block;
-        margin-top: 0.15rem;
-      }
+      .date-month { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; display: block; margin-top: 0.15rem; }
       .show-info { flex: 1; min-width: 0; }
-      .show-title {
-        font-size: 1.05rem;
-        font-weight: 700;
-        color: var(--text);
-        margin: 0;
-        word-break: break-word;
-      }
+      .show-title { font-size: 1.05rem; font-weight: 700; color: var(--text); margin: 0; word-break: break-word; }
       .show-meta { color: var(--muted); font-size: 0.85rem; margin-top: 0.2rem; }
-      .show-valor {
+      .show-valor { color: var(--lime); font-weight: 700; font-size: 0.95rem; margin-top: 0.3rem; }
+      .show-time-badge {
+        background: rgba(200, 240, 50, 0.18);
         color: var(--lime);
-        font-weight: 700;
-        font-size: 0.95rem;
-        margin-top: 0.3rem;
+        padding: 0.2rem 0.55rem;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 800;
+        margin-left: 0.4rem;
+        white-space: nowrap;
       }
 
       .status-pill {
@@ -211,9 +203,7 @@ st.markdown(
         font-size: 0.85rem;
         padding: 0.6rem 1rem !important;
       }
-      [data-testid="stExpander"] > div > div {
-        padding: 0.6rem 1rem !important;
-      }
+      [data-testid="stExpander"] > div > div { padding: 0.6rem 1rem !important; }
 
       .stTextInput input, .stSelectbox > div > div, .stTextArea textarea {
         background: #0d0d0d !important;
@@ -363,7 +353,7 @@ for idx, row in df_view.iterrows():
     status_html = status_pill(row.get("Status", ""))
 
     cidade_str = f" · {cidade}" if cidade and cidade.lower() not in local.lower() else ""
-    horario_str = f" · {horario}" if horario else ""
+    horario_badge = f"<span class='show-time-badge'>🕐 {horario}</span>" if horario else ""
     valor_html = f"<div class='show-valor'>💰 {valor}</div>" if valor else ""
 
     st.markdown(
@@ -374,8 +364,8 @@ for idx, row in df_view.iterrows():
             <span class="date-month">{mes}</span>
           </div>
           <div class="show-info">
-            <div class="show-title">{local}</div>
-            <div class="show-meta">{dia_sem}{cidade_str}{horario_str} {status_html}</div>
+            <div class="show-title">{local}{horario_badge}</div>
+            <div class="show-meta">{dia_sem}{cidade_str} {status_html}</div>
             {valor_html}
           </div>
         </div>
@@ -389,7 +379,12 @@ for idx, row in df_view.iterrows():
             with col1:
                 data_in = st.date_input("Data do evento", value=d.date(), format="DD/MM/YYYY", key=f"d_{idx}")
                 horario_in = st.text_input("Horário do show", value=row.get("Horário Show", ""), key=f"h_{idx}")
-                local_in = st.text_input("Local", value=row.get("Local", ""), key=f"l_{idx}")
+                local_in = st.text_input(
+                    "Título do show",
+                    value=row.get("Local", ""),
+                    key=f"l_{idx}",
+                    help="É o nome que aparece em destaque no card da agenda. Pode ser nome do cliente, da casa, ou da cidade.",
+                )
                 cidade_in = st.text_input("Cidade", value=row.get("Cidade", ""), key=f"c_{idx}")
                 contratante_in = st.text_input("Contratante", value=row.get("Contratante", ""), key=f"co_{idx}")
                 valor_in = st.text_input("Valor (R$)", value=row.get("Valor", ""), key=f"v_{idx}")
@@ -431,7 +426,6 @@ for idx, row in df_view.iterrows():
                 else:
                     st.error(f"Erro ao salvar: {msg}")
 
-        # Excluir (fora do form, duas etapas)
         confirm_key = f"confirm_del_{idx}"
         st.markdown("<hr style='border-color:#2a2a2a;margin:0.6rem 0;'>", unsafe_allow_html=True)
         if st.session_state.get(confirm_key):

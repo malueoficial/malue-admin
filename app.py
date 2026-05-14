@@ -29,6 +29,9 @@ SHEET_ID = "13ibY4_88N7pTK2lrLkNcudGeVyh78Kry6Y60Ijp0JD4"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 LOGO_URL = "https://raw.githubusercontent.com/malueoficial/malue-contratos/main/malue_icon.png"
 ICON_URL = "https://raw.githubusercontent.com/malueoficial/malue-contratos/main/ml_agenda_icon.png"
+# Materiais fixos que vão junto com todo contrato — hospedados no repo do gerador
+CAMARIM_URL = "https://raw.githubusercontent.com/malueoficial/malue-contratos/main/camarim_malue_2026.pdf"
+RIDER_URL = "https://raw.githubusercontent.com/malueoficial/malue-contratos/main/rider_malue_2026.pdf"
 
 WEBHOOK_URL = ""
 try:
@@ -214,20 +217,26 @@ st.markdown(
         margin-left: 0.4rem;
         white-space: nowrap;
       }
-      .show-contrato { margin-top: 0.45rem; }
+      .show-contrato {
+        margin-top: 0.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+      }
       .show-contrato a {
         display: inline-flex;
         align-items: center;
-        gap: 0.35rem;
+        gap: 0.3rem;
         background: rgba(200, 240, 50, 0.12);
         color: var(--lime) !important;
-        padding: 0.35rem 0.75rem;
+        padding: 0.3rem 0.7rem;
         border-radius: 999px;
-        font-size: 0.82rem;
+        font-size: 0.78rem;
         font-weight: 700;
         text-decoration: none;
         border: 1px solid rgba(200, 240, 50, 0.35);
         transition: background 0.15s;
+        white-space: nowrap;
       }
       .show-contrato a:hover {
         background: rgba(200, 240, 50, 0.22);
@@ -438,11 +447,16 @@ for idx, row in df_view.iterrows():
     horario_badge = f"<span class='show-time-badge'>🕐 {horario}</span>" if horario else ""
     valor_html = f"<div class='show-valor'>💰 {valor}</div>" if valor else ""
     contrato_url = (row.get("Contrato URL", "") or "").strip()
-    contrato_html = (
-        f"<div class='show-contrato'><a href='{contrato_url}' target='_blank' rel='noopener'>📄 Ver contrato</a></div>"
-        if contrato_url
-        else ""
-    )
+    if contrato_url:
+        contrato_html = (
+            "<div class='show-contrato'>"
+            f"<a href='{contrato_url}' target='_blank' rel='noopener'>📄 Ver contrato</a>"
+            f"<a href='{CAMARIM_URL}' target='_blank' rel='noopener'>🛋️ Camarim</a>"
+            f"<a href='{RIDER_URL}' target='_blank' rel='noopener'>🎤 Rider</a>"
+            "</div>"
+        )
+    else:
+        contrato_html = ""
 
     st.markdown(
         f"""

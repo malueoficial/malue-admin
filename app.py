@@ -227,9 +227,7 @@ st.markdown(
 )
 
 if not WEBHOOK_URL:
-    st.warning(
-        "⚠️ Edição desabilitada — webhook não configurado."
-    )
+    st.warning("⚠️ Edição desabilitada — webhook não configurado.")
 
 MESES_PT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
             "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
@@ -242,6 +240,8 @@ def carregar_agenda() -> pd.DataFrame:
     r.encoding = "utf-8"
     df = pd.read_csv(io.BytesIO(r.content), dtype=str, encoding="utf-8").fillna("")
     df.columns = [c.strip() for c in df.columns]
+    # _sheet_row guarda a linha real na planilha (antes do sort)
+    df["_sheet_row"] = df.index + 2
     df["_data_dt"] = pd.to_datetime(df["Data"], format="%d/%m/%Y", errors="coerce")
     df = df.dropna(subset=["_data_dt"])
     return df.sort_values("_data_dt").reset_index(drop=True)
@@ -300,11 +300,11 @@ TRAJE_OPCOES = ["", "Social", "Polo", "Casual", "Tema da festa"]
 TIPO_OPCOES = ["", "Show", "Casamento", "Aniversário", "Corporativo", "Formatura", "Privado", "Carnaval"]
 
 
-def salvar_no_sheet(row_index: int, updates: dict) -> tuple[bool, str]:
+def salvar_no_sheet(sheet_row, updates: dict) -> tuple[bool, str]:
     if not WEBHOOK_URL:
         return False, "Webhook não configurado."
     try:
-        payload = {"row": row_index + 2, "updates": updates}
+        payload = {"row": int(sheet_row), "updates": updates}
         r = requests.post(WEBHOOK_URL, json=payload, timeout=15)
         if r.status_code != 200:
             return False, f"HTTP {r.status_code}: {r.text[:200]}"
@@ -313,11 +313,11 @@ def salvar_no_sheet(row_index: int, updates: dict) -> tuple[bool, str]:
         return False, str(e)
 
 
-def excluir_do_sheet(row_index: int) -> tuple[bool, str]:
+def excluir_do_sheet(sheet_row) -> tuple[bool, str]:
     if not WEBHOOK_URL:
         return False, "Webhook não configurado."
     try:
-        payload = {"delete": True, "row": row_index + 2}
+        payload = {"delete": True, "row": int(sheet_row)}
         r = requests.post(WEBHOOK_URL, json=payload, timeout=15)
         if r.status_code != 200:
             return False, f"HTTP {r.status_code}: {r.text[:200]}"
@@ -362,67 +362,23 @@ for idx, row in df_view.iterrows():
         with st.form(f"form_{idx}"):
             col1, col2 = st.columns(2)
             with col1:
-                data_in = st.date_input(
-                    "Data do evento",
-                    value=d.date(),
-                    format="DD/MM/YYYY",
-                    key=f"d_{idx}",
-                )
-                horario_in = st.text_input(
-                    "Horário do show", value=row.get("Horário Show", ""), key=f"h_{idx}"
-                )
-                local_in = st.text_input(
-                    "Local", value=row.get("Local", ""), key=f"l_{idx}"
-                )
-                cidade_in = st.text_input(
-                    "Cidade", value=row.get("Cidade", ""), key=f"c_{idx}"
-                )
-                contratante_in = st.text_input(
-                    "Contratante", value=row.get("Contratante", ""), key=f"co_{idx}"
-                )
-                valor_in = st.text_input(
-                    "Valor (R$)", value=row.get("Valor", ""), key=f"v_{idx}"
-                )
+                data_in = st.date_input("Data do evento", value=d.date(), format="DD/MM/YYYY", key=f"d_{idx}")
+                horario_in = st.text_input("Horário do show", value=row.get("Horário Show", ""), key=f"h_{idx}")
+                local_in = st.text_input("Local", value=row.get("Local", ""), key=f"l_{idx}")
+                cidade_in = st.text_input("Cidade", value=row.get("Cidade", ""), key=f"c_{idx}")
+                contratante_in = st.text_input("Contratante", value=row.get("Contratante", ""), key=f"co_{idx}")
+                valor_in = st.text_input("Valor (R$)", value=row.get("Valor", ""), key=f"v_{idx}")
             with col2:
-                passagem_in = st.text_input(
-                    "Passagem de som",
-                    value=row.get("Passagem de Som", ""),
-                    key=f"p_{idx}",
-                    placeholder="ex.: 18h",
-                )
+                passagem_in = st.text_input("Passagem de som", value=row.get("Passagem de Som", ""), key=f"p_{idx}", placeholder="ex.: 18h")
                 traje_atual = row.get("Traje", "")
-                traje_in = st.selectbox(
-                    "Traje",
-                    options=TRAJE_OPCOES,
-                    index=TRAJE_OPCOES.index(traje_atual) if traje_atual in TRAJE_OPCOES else 0,
-                    key=f"t_{idx}",
-                )
-                empresa_in = st.text_input(
-                    "Empresa de som",
-                    value=row.get("Empresa de Som", ""),
-                    key=f"e_{idx}",
-                )
+                traje_in = st.selectbox("Traje", options=TRAJE_OPCOES, index=TRAJE_OPCOES.index(traje_atual) if traje_atual in TRAJE_OPCOES else 0, key=f"t_{idx}")
+                empresa_in = st.text_input("Empresa de som", value=row.get("Empresa de Som", ""), key=f"e_{idx}")
                 tipo_atual = row.get("Tipo Evento", "")
-                tipo_in = st.selectbox(
-                    "Tipo de evento",
-                    options=TIPO_OPCOES,
-                    index=TIPO_OPCOES.index(tipo_atual) if tipo_atual in TIPO_OPCOES else 0,
-                    key=f"ti_{idx}",
-                )
+                tipo_in = st.selectbox("Tipo de evento", options=TIPO_OPCOES, index=TIPO_OPCOES.index(tipo_atual) if tipo_atual in TIPO_OPCOES else 0, key=f"ti_{idx}")
                 status_atual = row.get("Status", "")
-                status_in = st.selectbox(
-                    "Status",
-                    options=STATUS_OPCOES,
-                    index=STATUS_OPCOES.index(status_atual) if status_atual in STATUS_OPCOES else 0,
-                    key=f"s_{idx}",
-                )
+                status_in = st.selectbox("Status", options=STATUS_OPCOES, index=STATUS_OPCOES.index(status_atual) if status_atual in STATUS_OPCOES else 0, key=f"s_{idx}")
 
-            obs_in = st.text_area(
-                "Observações",
-                value=row.get("Observações", ""),
-                key=f"o_{idx}",
-                height=70,
-            )
+            obs_in = st.text_area("Observações", value=row.get("Observações", ""), key=f"o_{idx}", height=70)
 
             submitted = st.form_submit_button("💾 Salvar alterações")
             if submitted:
@@ -442,7 +398,7 @@ for idx, row in df_view.iterrows():
                     "Status": status_in,
                     "Observações": obs_in,
                 }
-                ok, msg = salvar_no_sheet(idx, updates)
+                ok, msg = salvar_no_sheet(row.get("_sheet_row"), updates)
                 if ok:
                     st.success("✅ Salvo!")
                     st.cache_data.clear()
@@ -461,7 +417,7 @@ for idx, row in df_view.iterrows():
             col_ok, col_cancel = st.columns(2)
             with col_ok:
                 if st.button("Sim, excluir", key=f"do_del_{idx}", type="primary"):
-                    ok_del, msg_del = excluir_do_sheet(idx)
+                    ok_del, msg_del = excluir_do_sheet(row.get("_sheet_row"))
                     if ok_del:
                         st.session_state[confirm_key] = False
                         st.success("✅ Show excluído.")

@@ -356,6 +356,121 @@ except Exception as e:
     st.stop()
 
 # ============================================================
+# Adicionar show sem contrato
+# ============================================================
+STATUS_OPCOES_NEW = ["Confirmado", "Contrato assinado", "Realizado", "Pago", "Cancelado", "Folga", ""]
+TRAJE_OPCOES_NEW = ["", "Social", "Polo", "Casual", "Tema da festa"]
+TIPO_OPCOES_NEW = ["Show", "Casamento", "Aniversário", "Corporativo", "Formatura", "Privado", "Carnaval", ""]
+
+
+def adicionar_a_agenda(linha: dict) -> tuple[bool, str, int | None]:
+    """POST pro webhook com action append — adiciona linha nova na agenda."""
+    if not WEBHOOK_URL:
+        return False, "Webhook não configurado.", None
+    try:
+        r = requests.post(WEBHOOK_URL, json={"append": linha}, timeout=20)
+        if r.status_code != 200:
+            return False, f"HTTP {r.status_code}", None
+        try:
+            j = r.json()
+        except Exception:
+            return True, "ok (sem row)", None
+        if not j.get("ok"):
+            return False, j.get("error", "erro desconhecido"), None
+        return True, "ok", j.get("row")
+    except Exception as e:
+        return False, str(e), None
+
+
+with st.expander("➕ Adicionar show sem contrato"):
+    st.caption(
+        "Use isso quando o contrato vai vir do cliente — só pra reservar a data na agenda."
+    )
+    with st.form("form_novo_show"):
+        col_a, col_b = st.columns(2)
+        with col_a:
+            nova_data = st.date_input(
+                "Data do show",
+                value=date.today(),
+                format="DD/MM/YYYY",
+                key="novo_data",
+            )
+            novo_horario = st.text_input(
+                "Horário (ex: 21h)",
+                key="novo_horario",
+                placeholder="21h",
+            )
+            novo_local = st.text_input(
+                "Local",
+                key="novo_local",
+                placeholder="Nome do espaço / evento",
+            )
+            nova_cidade = st.text_input(
+                "Cidade",
+                key="nova_cidade",
+                placeholder="Goiânia",
+            )
+        with col_b:
+            novo_contratante = st.text_input(
+                "Contratante",
+                key="novo_contratante",
+                placeholder="Nome de quem contratou",
+            )
+            novo_tipo = st.selectbox(
+                "Tipo de evento",
+                TIPO_OPCOES_NEW,
+                key="novo_tipo",
+            )
+            novo_valor = st.text_input(
+                "Valor (ex: R$ 15.000,00)",
+                key="novo_valor",
+                placeholder="R$ 0,00",
+            )
+            novo_status = st.selectbox(
+                "Status",
+                STATUS_OPCOES_NEW,
+                key="novo_status",
+            )
+        nova_obs = st.text_area(
+            "Observações",
+            key="nova_obs",
+            placeholder="Contrato vem do cliente, etc.",
+            height=70,
+        )
+        submitted_novo = st.form_submit_button("Adicionar à agenda", type="primary")
+
+        if submitted_novo:
+            erros = []
+            if not nova_data:
+                erros.append("Informe a data.")
+            if not novo_local.strip():
+                erros.append("Informe o local.")
+            if erros:
+                for e in erros:
+                    st.error(e)
+            else:
+                linha = {
+                    "Data": nova_data.strftime("%d/%m/%Y"),
+                    "Dia": dia_semana_pt(nova_data),
+                    "Horário Show": novo_horario.strip(),
+                    "Local": novo_local.strip(),
+                    "Cidade": nova_cidade.strip(),
+                    "Contratante": novo_contratante.strip(),
+                    "Tipo Evento": novo_tipo,
+                    "Valor": novo_valor.strip(),
+                    "Status": novo_status,
+                    "Observações": nova_obs.strip(),
+                }
+                with st.spinner("Adicionando..."):
+                    ok, msg, srow = adicionar_a_agenda(linha)
+                if ok:
+                    st.success(f"✅ Show adicionado à agenda (linha {srow}).")
+                    st.cache_data.clear()
+                    st.rerun()
+                else:
+                    st.error(f"Erro: {msg}")
+
+# ============================================================
 # Filtros
 # ============================================================
 filtro = st.radio(

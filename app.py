@@ -473,21 +473,57 @@ with st.expander("➕ Adicionar show sem contrato"):
 # ============================================================
 # Filtros
 # ============================================================
+MESES_NOMES = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+]
+
 filtro = st.radio(
     "Filtro",
-    ["Próximos", "Este mês", "Todos"],
+    ["Próximos", "Esta semana", "Este mês", "Por mês", "Todos"],
     horizontal=True,
     label_visibility="collapsed",
 )
 
 hoje = pd.Timestamp(date.today())
+
 if filtro == "Próximos":
     df_view = df[df["_data_dt"] >= hoje]
+elif filtro == "Esta semana":
+    # Semana: segunda → domingo da semana corrente
+    inicio_sem = hoje - pd.Timedelta(days=hoje.weekday())
+    fim_sem = inicio_sem + pd.Timedelta(days=6)
+    df_view = df[(df["_data_dt"] >= inicio_sem) & (df["_data_dt"] <= fim_sem)]
 elif filtro == "Este mês":
     df_view = df[
         (df["_data_dt"] >= hoje)
         & (df["_data_dt"].dt.month == hoje.month)
         & (df["_data_dt"].dt.year == hoje.year)
+    ]
+elif filtro == "Por mês":
+    # Anos disponíveis na agenda + meses
+    anos_disponiveis = sorted(df["_data_dt"].dt.year.dropna().unique().astype(int).tolist())
+    if not anos_disponiveis:
+        anos_disponiveis = [hoje.year]
+    col_m, col_a = st.columns([2, 1])
+    with col_m:
+        mes_escolhido = st.selectbox(
+            "Mês",
+            options=list(range(1, 13)),
+            format_func=lambda m: MESES_NOMES[m - 1],
+            index=hoje.month - 1,
+            key="filtro_mes",
+        )
+    with col_a:
+        ano_escolhido = st.selectbox(
+            "Ano",
+            options=anos_disponiveis,
+            index=anos_disponiveis.index(hoje.year) if hoje.year in anos_disponiveis else 0,
+            key="filtro_ano",
+        )
+    df_view = df[
+        (df["_data_dt"].dt.month == mes_escolhido)
+        & (df["_data_dt"].dt.year == ano_escolhido)
     ]
 else:
     df_view = df

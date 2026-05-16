@@ -32,6 +32,8 @@ ICON_URL = "https://raw.githubusercontent.com/malueoficial/malue-contratos/main/
 # Materiais fixos que vão junto com todo contrato — hospedados no repo do gerador
 CAMARIM_URL = "https://raw.githubusercontent.com/malueoficial/malue-contratos/main/camarim_malue_2026.pdf"
 RIDER_URL = "https://raw.githubusercontent.com/malueoficial/malue-contratos/main/rider_malue_2026.pdf"
+# Encurtador central — URLs curtas e rastreáveis pra mandar pra clientes via WhatsApp
+MALUE_SHOWS_BASE = "https://malue-shows.streamlit.app"
 
 WEBHOOK_URL = ""
 try:
@@ -674,6 +676,35 @@ for idx, row in df_view.iterrows():
         """,
         unsafe_allow_html=True,
     )
+
+    # ============================================================
+    # Links curtos pra cliente (orçamento + contrato + rider + camarim)
+    # ============================================================
+    slug = (row.get("Slug", "") or "").strip()
+    if slug:
+        with st.expander("🔗 Links curtos pra cliente"):
+            st.caption(
+                "Links bonitos e rastreáveis pra mandar no WhatsApp. "
+                "Cada clique do cliente é registrado nos acessos."
+            )
+            link_orc = f"{MALUE_SHOWS_BASE}/?o={slug}"
+            link_c   = f"{MALUE_SHOWS_BASE}/?c={slug}"
+            link_r   = f"{MALUE_SHOWS_BASE}/?r={slug}"
+            link_cam = f"{MALUE_SHOWS_BASE}/?cam={slug}"
+            st.markdown("**Orçamento:**")
+            st.code(link_orc, language=None)
+            if contrato_url:
+                st.markdown("**Contrato:**")
+                st.code(link_c, language=None)
+            st.markdown("**Rider técnico:**")
+            st.code(link_r, language=None)
+            st.markdown("**Camarim:**")
+            st.code(link_cam, language=None)
+    elif contrato_url:
+        st.caption(
+            "💡 Esse show ainda não tem slug — depois do próximo `backfillSlugs` "
+            "no Apps Script os links curtos vão aparecer aqui."
+        )
 
     with st.expander("✏️ Editar este show"):
         with st.form(f"form_{idx}"):

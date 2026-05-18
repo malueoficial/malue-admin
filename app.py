@@ -632,6 +632,17 @@ for idx, row in df_view.iterrows():
     valor = row.get("Valor", "")
     status_html = status_pill(row.get("Status", ""))
 
+    # Defensiva: tira qualquer tag HTML que possa ter sido salva por engano
+    # em campos que entram direto no HTML do card (Local, Cidade, Contratante, Valor).
+    import re as _re
+    def _strip_html(s):
+        return _re.sub(r"<[^>]*>", "", str(s or "")).strip()
+    local = _strip_html(local) or "—"
+    cidade = _strip_html(cidade)
+    contratante = _strip_html(contratante)
+    valor = _strip_html(valor)
+    horario = _strip_html(horario)
+
     horario_badge = f"<span class='show-time-badge'>🕐 {horario}</span>" if horario else ""
     valor_html = f"<div class='show-valor'>💰 {valor}</div>" if valor else ""
 

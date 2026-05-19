@@ -639,17 +639,38 @@ for idx, row in df_view.iterrows():
     import html as _html
     def _safe(s):
         v = str(s or "")
-        # Tira tags HTML completas
         v = _re.sub(r"<[^>]*>", "", v)
-        # Normaliza qualquer whitespace (inclui \n, \t) em espaço simples
         v = _re.sub(r"\s+", " ", v).strip()
-        # Escapa caracteres HTML residuais (&, <, > soltos)
         v = _html.escape(v, quote=False)
         return v
+
+    def _fmt_valor_br(s):
+        """Formata valor numérico como moeda brasileira: 100000 → 'R$ 100.000,00'.
+        Aceita entrada solta: '100000', '100.000', '100.000,00', 'R$ 100000', etc."""
+        if not s:
+            return ""
+        raw = str(s).strip()
+        cleaned = _re.sub(r"[^\d.,]", "", raw)
+        if not cleaned:
+            return _safe(raw)
+        try:
+            if "," in cleaned:
+                # Formato BR: pontos = milhar, vírgula = decimal
+                n = float(cleaned.replace(".", "").replace(",", "."))
+            elif cleaned.count(".") >= 1 and not cleaned.endswith("."):
+                # Trata pontos como separadores de milhar (ex.: "100.000")
+                n = float(cleaned.replace(".", ""))
+            else:
+                n = float(cleaned)
+        except (ValueError, TypeError):
+            return _safe(raw)
+        formatted = f"{n:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return f"R$ {formatted}"
+
     local = _safe(local) or "—"
     cidade = _safe(cidade)
     contratante = _safe(contratante)
-    valor = _safe(valor)
+    valor = _fmt_valor_br(valor)
     horario = _safe(horario)
 
     horario_badge = f"<span class='show-time-badge'>🕐 {horario}</span>" if horario else ""

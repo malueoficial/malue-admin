@@ -632,16 +632,25 @@ for idx, row in df_view.iterrows():
     valor = row.get("Valor", "")
     status_html = status_pill(row.get("Status", ""))
 
-    # Defensiva: tira qualquer tag HTML que possa ter sido salva por engano
+    # Defensiva forte: tira qualquer tag HTML que possa ter sido salva por engano
     # em campos que entram direto no HTML do card (Local, Cidade, Contratante, Valor).
+    # Também escapa &, <, > residuais e normaliza espaços/quebras de linha.
     import re as _re
-    def _strip_html(s):
-        return _re.sub(r"<[^>]*>", "", str(s or "")).strip()
-    local = _strip_html(local) or "—"
-    cidade = _strip_html(cidade)
-    contratante = _strip_html(contratante)
-    valor = _strip_html(valor)
-    horario = _strip_html(horario)
+    import html as _html
+    def _safe(s):
+        v = str(s or "")
+        # Tira tags HTML completas
+        v = _re.sub(r"<[^>]*>", "", v)
+        # Normaliza qualquer whitespace (inclui \n, \t) em espaço simples
+        v = _re.sub(r"\s+", " ", v).strip()
+        # Escapa caracteres HTML residuais (&, <, > soltos)
+        v = _html.escape(v, quote=False)
+        return v
+    local = _safe(local) or "—"
+    cidade = _safe(cidade)
+    contratante = _safe(contratante)
+    valor = _safe(valor)
+    horario = _safe(horario)
 
     horario_badge = f"<span class='show-time-badge'>🕐 {horario}</span>" if horario else ""
     valor_html = f"<div class='show-valor'>💰 {valor}</div>" if valor else ""
@@ -669,24 +678,22 @@ for idx, row in df_view.iterrows():
         else ""
     )
 
-    st.markdown(
-        f"""
-        <div class="show-card">
-          <div class="date-block">
-            <span class="date-day">{dia_num:02d}</span>
-            <span class="date-month">{mes}</span>
-          </div>
-          <div class="show-info">
-            <div class="show-title">{local}{horario_badge}</div>
-            <div class="show-meta">{meta1}</div>
-            {meta2_html}
-            {valor_html}
-            {contrato_html}
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    # IMPORTANTE: HTML em uma única linha pra evitar que o parser de Markdown
+    # do Streamlit trate as linhas indentadas como bloco de código (4+ espaços).
+    card_html = (
+        f'<div class="show-card">'
+        f'<div class="date-block">'
+        f'<span class="date-day">{dia_num:02d}</span>'
+        f'<span class="date-month">{mes}</span>'
+        f'</div>'
+        f'<div class="show-info">'
+        f'<div class="show-title">{local}{horario_badge}</div>'
+        f'<div class="show-meta">{meta1}</div>'
+        f'{meta2_html}{valor_html}{contrato_html}'
+        f'</div>'
+        f'</div>'
     )
+    st.markdown(card_html, unsafe_allow_html=True)
 
     # ============================================================
     # Links curtos pra cliente (orçamento + contrato + rider + camarim)
